@@ -1,0 +1,16 @@
+{
+  "name": "@ai-novelist/core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@ai-novelist/contracts": "workspace:*",
+    "better-sqlite3": "latest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "ai-novelist",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm typecheck && pnpm test && pnpm lint && pnpm format:check",
+    "demo": "pnpm --filter @ai-novelist/cli demo"
+  },
+  "devDependencies": {
+    "@ai-novelist/contracts": "workspace:*",
+    "@ai-novelist/core": "workspace:*",
+    "@eslint/js": "latest",
+    "@types/better-sqlite3": "latest",
+    "@types/node": "latest",
+    "better-sqlite3": "latest",
+    "eslint": "latest",
+    "prettier": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}

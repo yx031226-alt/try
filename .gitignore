@@ -1,6 +1,7 @@
 .worktrees/
 worktrees/
 node_modules/
+.pnpm-store/
 dist/
 coverage/
 *.db
