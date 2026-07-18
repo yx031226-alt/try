@@ -1,0 +1,12 @@
+.worktrees/
+worktrees/
+node_modules/
+dist/
+coverage/
+*.db
+*.db-shm
+*.db-wal
+snapshots/
+.env
+.env.*
+!.env.example
