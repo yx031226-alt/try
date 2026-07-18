@@ -2,6 +2,9 @@
   "name": "ai-novelist",
   "private": true,
   "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "typecheck": "pnpm -r typecheck",
     "tsc": "tsc",
@@ -17,12 +20,12 @@
     "@ai-novelist/core": "workspace:*",
     "@eslint/js": "latest",
     "@types/better-sqlite3": "latest",
-    "@types/node": "latest",
+    "@types/node": "24.x",
     "better-sqlite3": "latest",
     "eslint": "latest",
     "prettier": "latest",
     "tsx": "latest",
-    "typescript": "latest",
+    "typescript": "~6.0.0",
     "typescript-eslint": "latest",
     "vitest": "latest"
   }
