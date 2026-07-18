@@ -4,11 +4,12 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "typecheck": "pnpm -r typecheck",
+    "tsc": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "verify": "pnpm typecheck && pnpm test && pnpm lint && pnpm format:check",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "demo": "pnpm --filter @ai-novelist/cli demo"
   },
   "devDependencies": {
