@@ -111,4 +111,37 @@ describe('SnapshotService', () => {
       }),
     ).toBe('# 人物实时状态\n\n## char-1\n\n- note: "hidden\\uDB40\\uDC01"\n');
   });
+
+  it('quotes boundary and whitespace-only Unicode whitespace in every text position', () => {
+    const states = {
+      '\u00A0hero ': {
+        ' field\u00A0': ' value\u00A0',
+        blank: ' \u00A0',
+        nested: {
+          array: [' leading', 'trailing ', ' \u00A0'],
+          object: { ' key ': ' value ' },
+        },
+      },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## "\u00A0hero "\n\n- " field\u00A0": " value\u00A0"\n- blank: " \u00A0"\n- nested: {"array":[" leading","trailing "," \u00A0"],"object":{" key ":" value "}}\n',
+    );
+  });
+
+  it('quotes backslashes in labels and values without Markdown escape ambiguity', () => {
+    const states = {
+      'hero\\': {
+        'path\\': 'trail\\',
+        nested: {
+          array: ['inner\\'],
+          object: { 'key\\': 'value\\' },
+        },
+      },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## "hero\\\\"\n\n- nested: {"array":["inner\\\\"],"object":{"key\\\\":"value\\\\"}}\n- "path\\\\": "trail\\\\"\n',
+    );
+  });
 });

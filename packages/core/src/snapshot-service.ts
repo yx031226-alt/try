@@ -26,6 +26,7 @@ const MARKDOWN_OR_HTML_RISK = new Set([
 ]);
 const JSON_NUMBER_LITERAL = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/u;
 const CONTROL_OR_LINE_SEPARATOR = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const BOUNDARY_WHITESPACE = /^\p{White_Space}|\p{White_Space}$/u;
 
 function compareCodePoints(left: string, right: string): number {
   const leftPoints = Array.from(left);
@@ -107,6 +108,8 @@ function isAmbiguousJsonScalarText(value: string): boolean {
 function isSafeBareText(value: string): boolean {
   return (
     value.length > 0 &&
+    !BOUNDARY_WHITESPACE.test(value) &&
+    !value.includes('\\') &&
     !CONTROL_OR_LINE_SEPARATOR.test(value) &&
     !Array.from(value).some(isUnsafeTextCharacter)
   );
