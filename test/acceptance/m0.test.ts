@@ -1,38 +1,54 @@
-import Database from 'better-sqlite3';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import type { ChangeProposal } from '@ai-novelist/contracts';
-import {
-  ApprovalService,
-  CharacterProjection,
-  SnapshotService,
-  SqliteEventStore,
-} from '@ai-novelist/core';
+import { runDemo } from '../../packages/cli/src/demo.js';
 
-describe('M0 acceptance', () => {
-  it('commits an approved character proposal and renders the rebuilt state', () => {
-    const store = new SqliteEventStore(new Database(':memory:'));
-    const proposal: ChangeProposal = {
-      proposalId: 'proposal-1',
-      schemaVersion: 1,
-      workId: 'work-1',
-      eventType: 'character.state.changed',
-      createdAt: '2026-07-22T12:00:00.000Z',
-      createdBy: { kind: 'skill', id: 'prose', version: '0.1.0' },
-      payload: { characterId: 'char-1', patch: { location: '临江城' } },
-      status: 'pending',
-    };
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+const demoPath = fileURLToPath(new URL('../../packages/cli/src/demo.ts', import.meta.url));
+const tsxCliPath = fileURLToPath(
+  new URL('../../packages/cli/node_modules/tsx/dist/cli.mjs', import.meta.url),
+);
 
-    expect(new CharacterProjection().rebuild(store.readAll('work-1'))).toEqual({});
+function executeDemo(): Promise<{ exitCode: number | null; stderr: string; stdout: string }> {
+  const child = spawn(process.execPath, [tsxCliPath, demoPath], {
+    cwd: repositoryRoot,
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
 
-    new ApprovalService(store, () => 'event-1').approve(proposal, {
-      approvedBy: 'local-author',
-      approvedAt: '2026-07-22T12:01:00.000Z',
-      reason: '确认人物位置变更',
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+
+  return new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (exitCode) => {
+      resolve({ exitCode, stderr, stdout });
     });
+  });
+}
 
-    const states = new CharacterProjection().rebuild(store.readAll('work-1'));
+describe('M0 CLI acceptance', () => {
+  it('returns a deterministic snapshot through the reusable CLI entrypoint', () => {
+    expect(runDemo()).toBe('# 人物实时状态\n\n## hero\n\n- alive: true\n- location: 临江城\n');
+  });
 
-    expect(new SnapshotService().renderCharacterState(states)).toContain('- location: 临江城');
+  it('runs the CLI demo script without stderr', async () => {
+    const result = await executeDemo();
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('# 人物实时状态');
+    expect(result.stdout).toContain('## hero');
+    expect(result.stdout).toContain('- alive: true');
+    expect(result.stdout).toContain('- location: 临江城');
   });
 });
