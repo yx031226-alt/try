@@ -1,17 +1,47 @@
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { runDemo } from '../../packages/cli/src/demo.js';
 
 const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
-const demoPath = fileURLToPath(new URL('../../packages/cli/src/demo.ts', import.meta.url));
-const tsxCliPath = fileURLToPath(
-  new URL('../../packages/cli/node_modules/tsx/dist/cli.mjs', import.meta.url),
-);
+
+function resolvePnpmEntrypoint(): string {
+  const npmExecPath = process.env['npm_execpath'];
+
+  if (npmExecPath !== undefined) {
+    return npmExecPath;
+  }
+
+  const commandName = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+  const pathEntries = (process.env['PATH'] ?? '').split(delimiter);
+
+  for (const pathEntry of pathEntries) {
+    const commandPath = join(pathEntry, commandName);
+
+    if (!existsSync(commandPath)) {
+      continue;
+    }
+
+    if (process.platform !== 'win32') {
+      return realpathSync(commandPath);
+    }
+
+    const commandBody = readFileSync(commandPath, 'utf8');
+    const entrypoint = commandBody.match(/"([^"]*pnpm\.(?:cjs|mjs))"/u)?.[1];
+
+    if (entrypoint !== undefined) {
+      return resolve(dirname(commandPath), entrypoint.replace('%~dp0', ''));
+    }
+  }
+
+  throw new Error('PNPM_ENTRYPOINT_NOT_FOUND');
+}
 
 function executeDemo(): Promise<{ exitCode: number | null; stderr: string; stdout: string }> {
-  const child = spawn(process.execPath, [tsxCliPath, demoPath], {
+  const child = spawn(process.execPath, [resolvePnpmEntrypoint(), '--silent', 'demo'], {
     cwd: repositoryRoot,
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -41,14 +71,11 @@ describe('M0 CLI acceptance', () => {
     expect(runDemo()).toBe('# 人物实时状态\n\n## hero\n\n- alive: true\n- location: 临江城\n');
   });
 
-  it('runs the CLI demo script without stderr', async () => {
+  it('runs the packaged root demo script without stderr', async () => {
     const result = await executeDemo();
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe('');
-    expect(result.stdout).toContain('# 人物实时状态');
-    expect(result.stdout).toContain('## hero');
-    expect(result.stdout).toContain('- alive: true');
-    expect(result.stdout).toContain('- location: 临江城');
+    expect(result.stdout).toBe(runDemo());
   });
 });
