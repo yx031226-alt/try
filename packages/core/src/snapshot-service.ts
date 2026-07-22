@@ -47,7 +47,7 @@ function renderValue(value: JsonValue): string {
 }
 
 export class SnapshotService {
-  static render(states: CharacterStates): string {
+  renderCharacterState(states: CharacterStates): string {
     const characters = Object.keys(states)
       .sort(compareCodePoints)
       .map((characterId) => {

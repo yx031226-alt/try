@@ -9,7 +9,7 @@ describe('SnapshotService', () => {
       'char-1': { location: '临江城', alive: true },
     };
 
-    expect(SnapshotService.render(states)).toBe(
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
       '# 人物实时状态\n\n## char-1\n\n- alive: true\n- location: 临江城\n\n## char-2\n\n- location: 北境\n',
     );
   });
@@ -22,7 +22,7 @@ describe('SnapshotService', () => {
       },
     };
 
-    expect(SnapshotService.render(states)).toBe(
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
       '# 人物实时状态\n\n## char-1\n\n- details: {"a":null,"z":true}\n- items: [{"x":1,"y":2},"盟友"]\n',
     );
   });
@@ -33,7 +33,7 @@ describe('SnapshotService', () => {
       '￿': { state: 'earlier code point' },
     };
 
-    expect(SnapshotService.render(states)).toBe(
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
       '# 人物实时状态\n\n## ￿\n\n- state: earlier code point\n\n## 😀\n\n- state: later code point\n',
     );
   });
