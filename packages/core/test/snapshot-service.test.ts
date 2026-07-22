@@ -37,4 +37,53 @@ describe('SnapshotService', () => {
       '# 人物实时状态\n\n## ￿\n\n- state: earlier code point\n\n## 😀\n\n- state: later code point\n',
     );
   });
+
+  it('keeps string values distinct from matching JSON scalar text', () => {
+    const states = {
+      'char-1': {
+        boolean: true,
+        booleanText: 'true',
+        null: null,
+        nullText: 'null',
+        number: 1,
+        numberText: '1',
+      },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## char-1\n\n- boolean: true\n- booleanText: "true"\n- null: null\n- nullText: "null"\n- number: 1\n- numberText: "1"\n',
+    );
+  });
+
+  it('encodes unsafe values without allowing forged Markdown or HTML', () => {
+    const states = {
+      'char-1': { note: 'line one\n## forged <em>' },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## char-1\n\n- note: "line one\\n\\u0023\\u0023 forged \\u003Cem\\u003E"\n',
+    );
+  });
+
+  it('encodes unsafe character IDs and field names on one Markdown line', () => {
+    const states = {
+      'hero\n## forged <b>': {
+        'role\n- forged <script>': 'guardian',
+      },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## "hero\\n\\u0023\\u0023 forged \\u003Cb\\u003E"\n\n- "role\\n- forged \\u003Cscript\\u003E": guardian\n',
+    );
+  });
+
+  it('renders an empty state collection with only the document heading', () => {
+    expect(new SnapshotService().renderCharacterState({})).toBe('# 人物实时状态\n');
+  });
+
+  it('renders an empty character state without an empty list item', () => {
+    expect(new SnapshotService().renderCharacterState({ 'char-1': {} })).toBe(
+      '# 人物实时状态\n\n## char-1\n',
+    );
+  });
 });
