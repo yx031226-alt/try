@@ -86,4 +86,29 @@ describe('SnapshotService', () => {
       '# 人物实时状态\n\n## char-1\n',
     );
   });
+
+  it('encodes control and format characters in every snapshot text position', () => {
+    const states = {
+      'hero\u007F': {
+        directValue: 'value\u202E',
+        'field\u0085': 'guardian',
+        nested: {
+          array: ['array\u0085', 'format\u202E'],
+          object: { secret: 'object\u007F' },
+        },
+      },
+    };
+
+    expect(new SnapshotService().renderCharacterState(states)).toBe(
+      '# 人物实时状态\n\n## "hero\\u007F"\n\n- directValue: "value\\u202E"\n- "field\\u0085": guardian\n- nested: {"array":["array\\u0085","format\\u202E"],"object":{"secret":"object\\u007F"}}\n',
+    );
+  });
+
+  it('encodes non-BMP format characters as UTF-16 surrogate pairs', () => {
+    expect(
+      new SnapshotService().renderCharacterState({
+        'char-1': { note: 'hidden\u{E0001}' },
+      }),
+    ).toBe('# 人物实时状态\n\n## char-1\n\n- note: "hidden\\uDB40\\uDC01"\n');
+  });
 });

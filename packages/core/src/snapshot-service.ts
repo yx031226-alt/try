@@ -44,13 +44,35 @@ function compareCodePoints(left: string, right: string): number {
   return leftPoints.length - rightPoints.length;
 }
 
+function isUnsafeTextCharacter(character: string): boolean {
+  return MARKDOWN_OR_HTML_RISK.has(character) || CONTROL_OR_LINE_SEPARATOR.test(character);
+}
+
+function unicodeEscape(codeUnit: number): string {
+  return `\\u${codeUnit.toString(16).toUpperCase().padStart(4, '0')}`;
+}
+
+function unicodeEscapesForCharacter(character: string): string {
+  const codePoint = character.codePointAt(0)!;
+
+  if (codePoint <= 0xffff) {
+    return unicodeEscape(codePoint);
+  }
+
+  const surrogateValue = codePoint - 0x10000;
+  const highSurrogate = 0xd800 + Math.floor(surrogateValue / 0x400);
+  const lowSurrogate = 0xdc00 + (surrogateValue % 0x400);
+
+  return unicodeEscape(highSurrogate) + unicodeEscape(lowSurrogate);
+}
+
 function markdownSafeJsonString(value: string): string {
   return Array.from(JSON.stringify(value), (character) => {
-    if (!MARKDOWN_OR_HTML_RISK.has(character)) {
+    if (!isUnsafeTextCharacter(character)) {
       return character;
     }
 
-    return `\\u${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`;
+    return unicodeEscapesForCharacter(character);
   }).join('');
 }
 
@@ -86,7 +108,7 @@ function isSafeBareText(value: string): boolean {
   return (
     value.length > 0 &&
     !CONTROL_OR_LINE_SEPARATOR.test(value) &&
-    !Array.from(value).some((character) => MARKDOWN_OR_HTML_RISK.has(character))
+    !Array.from(value).some(isUnsafeTextCharacter)
   );
 }
 
