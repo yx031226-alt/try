@@ -1,9 +1,37 @@
 import Database from 'better-sqlite3';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { EventEnvelope } from '@ai-novelist/contracts';
 
 import { SqliteEventStore } from '../src/index.js';
+
+let databases: Database.Database[] = [];
+let temporaryDirectory: string | undefined;
+
+afterEach(() => {
+  for (const database of databases) {
+    database.close();
+  }
+  databases = [];
+
+  if (temporaryDirectory !== undefined) {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+    temporaryDirectory = undefined;
+  }
+});
+
+function createFileStores(): [SqliteEventStore, SqliteEventStore] {
+  temporaryDirectory = mkdtempSync(join(tmpdir(), 'ai-novelist-event-store-'));
+  const databaseFile = join(temporaryDirectory, 'events.sqlite');
+  const firstDatabase = new Database(databaseFile);
+  const secondDatabase = new Database(databaseFile);
+  databases.push(firstDatabase, secondDatabase);
+
+  return [new SqliteEventStore(firstDatabase), new SqliteEventStore(secondDatabase)];
+}
 
 const event: EventEnvelope = {
   eventId: 'evt-1',
@@ -58,5 +86,89 @@ describe('SqliteEventStore', () => {
     store.append(event);
 
     expect(() => store.append(committedProposalAgain)).toThrow('PROPOSAL_ALREADY_COMMITTED');
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['NaN', Number.NaN],
+    ['BigInt', BigInt(1)],
+  ])('rejects %s before persisting an event', (_name, value) => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const invalidEvent: unknown = {
+      ...event,
+      payload: { value },
+    };
+
+    expect(() => store.append(invalidEvent as EventEnvelope)).toThrow();
+    expect(store.readAll('work-1')).toEqual([]);
+  });
+
+  it('treats reordered JSON object keys as an idempotent duplicate', () => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const canonicalEvent: EventEnvelope = {
+      ...event,
+      eventId: 'evt-canonical',
+      proposalId: 'proposal-canonical',
+      payload: {
+        characterId: 'char-1',
+        patch: {
+          attributes: { alpha: 'first', beta: 'second' },
+          location: '临江城',
+        },
+      },
+    };
+    const reorderedEvent: EventEnvelope = {
+      ...canonicalEvent,
+      payload: {
+        patch: {
+          location: '临江城',
+          attributes: { beta: 'second', alpha: 'first' },
+        },
+        characterId: 'char-1',
+      },
+    };
+
+    expect(store.append(canonicalEvent)).toBe('appended');
+    expect(store.append(reorderedEvent)).toBe('duplicate');
+    expect(JSON.stringify(store.readAll('work-1'))).toBe(JSON.stringify([canonicalEvent]));
+  });
+
+  it("returns only one work's events in append sequence", () => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const secondWorkOneEvent: EventEnvelope = {
+      ...event,
+      eventId: 'evt-2',
+      proposalId: 'proposal-2',
+    };
+    const otherWorkEvent: EventEnvelope = {
+      ...event,
+      eventId: 'evt-3',
+      proposalId: 'proposal-3',
+      workId: 'work-2',
+    };
+
+    store.append(event);
+    store.append(otherWorkEvent);
+    store.append(secondWorkOneEvent);
+
+    expect(store.readAll('work-1')).toEqual([event, secondWorkOneEvent]);
+  });
+
+  it('returns duplicate for a repeated event across file-backed connections', () => {
+    const [firstStore, secondStore] = createFileStores();
+
+    expect(firstStore.append(event)).toBe('appended');
+    expect(secondStore.append(event)).toBe('duplicate');
+  });
+
+  it('rejects a repeated proposal across file-backed connections', () => {
+    const [firstStore, secondStore] = createFileStores();
+    const repeatedProposal: EventEnvelope = {
+      ...event,
+      eventId: 'evt-2',
+    };
+
+    expect(firstStore.append(event)).toBe('appended');
+    expect(() => secondStore.append(repeatedProposal)).toThrow('PROPOSAL_ALREADY_COMMITTED');
   });
 });

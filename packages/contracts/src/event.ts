@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export const JsonValueSchema = z.json();
+
+export type JsonValue = z.infer<typeof JsonValueSchema>;
+
 export const ActorSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('author'),
@@ -23,7 +27,7 @@ export const ChangeProposalSchema = z.object({
   eventType: z.string().min(1),
   createdAt: z.string().datetime(),
   createdBy: ActorSchema,
-  payload: z.record(z.string(), z.unknown()),
+  payload: z.record(z.string(), JsonValueSchema),
   status: z.enum(['pending', 'rejected', 'approved']),
 });
 
@@ -42,7 +46,7 @@ export const EventEnvelopeSchema = z.object({
   actor: ActorSchema,
   proposalId: z.string().min(1),
   approval: ApprovalSchema,
-  payload: z.record(z.string(), z.unknown()),
+  payload: z.record(z.string(), JsonValueSchema),
 });
 
 export type ChangeProposal = z.infer<typeof ChangeProposalSchema>;
