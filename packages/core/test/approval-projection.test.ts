@@ -71,6 +71,27 @@ describe('ApprovalService and CharacterProjection', () => {
     ).toThrow('PROPOSAL_NOT_PENDING');
   });
 
+  it.each([
+    ['a null patch', { characterId: 'char-1', patch: null }],
+    ['a missing character ID', { patch: { location: '临江城' } }],
+  ])('rejects %s before it enters the event store', (_description, payload) => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const invalidProposal: ChangeProposal = {
+      ...proposal,
+      proposalId: 'proposal-invalid',
+      payload,
+    };
+
+    expect(() =>
+      new ApprovalService(store, () => 'evt-invalid').approve(invalidProposal, {
+        approvedBy: 'local-author',
+        approvedAt: '2026-07-18T12:01:00.000Z',
+        reason: '确认人物状态变更',
+      }),
+    ).toThrow('INVALID_CHARACTER_STATE_EVENT');
+    expect(store.readAll(proposal.workId)).toEqual([]);
+  });
+
   it('merges character patches in event order', () => {
     const projection = new CharacterProjection();
     const first: EventEnvelope = {
@@ -143,5 +164,37 @@ describe('ApprovalService and CharacterProjection', () => {
 
     expect(Object.getPrototypeOf(states)).toBe(Object.prototype);
     expect(Object.getOwnPropertyDescriptor(states, '__proto__')?.value).toEqual({ alive: true });
+  });
+
+  it('deeply copies nested patch values so projection mutations cannot alter an event', () => {
+    const sourcePatch = {
+      profile: { rank: 1 },
+      aliases: ['江湖客'],
+    };
+    const event: EventEnvelope = {
+      eventId: 'evt-isolated',
+      schemaVersion: 1,
+      workId: 'work-1',
+      eventType: 'character.state.changed',
+      occurredAt: '2026-07-18T12:01:00.000Z',
+      actor: { kind: 'author', id: 'local-author' },
+      proposalId: 'proposal-isolated',
+      approval: {
+        approvedBy: 'local-author',
+        approvedAt: '2026-07-18T12:01:00.000Z',
+        reason: '确认人物状态变更',
+      },
+      payload: { characterId: 'char-1', patch: sourcePatch },
+    };
+
+    const state = new CharacterProjection().rebuild([event])['char-1'];
+
+    (state?.['profile'] as { rank: number }).rank = 2;
+    (state?.['aliases'] as string[]).push('故人');
+
+    expect(sourcePatch).toEqual({
+      profile: { rank: 1 },
+      aliases: ['江湖客'],
+    });
   });
 });

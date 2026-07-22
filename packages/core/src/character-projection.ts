@@ -1,11 +1,12 @@
 import type { EventEnvelope, JsonValue } from '@ai-novelist/contracts';
 
+import {
+  cloneCharacterStatePatch,
+  validateCharacterStateChangePayload,
+} from './character-state-change.js';
+
 export type CharacterState = Record<string, JsonValue>;
 export type CharacterStates = Record<string, CharacterState>;
-
-function isObject(value: JsonValue | undefined): value is Record<string, JsonValue> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 export class CharacterProjection {
   rebuild(events: EventEnvelope[]): CharacterStates {
@@ -16,15 +17,10 @@ export class CharacterProjection {
         continue;
       }
 
-      const characterId = event.payload['characterId'];
-      const patch = event.payload['patch'];
-
-      if (typeof characterId !== 'string' || !isObject(patch)) {
-        throw new Error('INVALID_CHARACTER_STATE_EVENT');
-      }
+      const { characterId, patch } = validateCharacterStateChangePayload(event.payload);
 
       const currentState = Object.getOwnPropertyDescriptor(characters, characterId)?.value;
-      const nextState: CharacterState = { ...currentState, ...patch };
+      const nextState: CharacterState = { ...currentState, ...cloneCharacterStatePatch(patch) };
 
       Object.defineProperty(characters, characterId, {
         value: nextState,

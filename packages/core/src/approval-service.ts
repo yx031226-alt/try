@@ -1,6 +1,11 @@
 import { ApprovalSchema, type ChangeProposal, type EventEnvelope } from '@ai-novelist/contracts';
 
+import { validateCharacterStateChangePayload } from './character-state-change.js';
 import type { EventStore } from './event-store.js';
+
+const proposalPayloadValidators = new Map<string, (payload: ChangeProposal['payload']) => void>([
+  ['character.state.changed', validateCharacterStateChangePayload],
+]);
 
 export class ApprovalService {
   constructor(
@@ -14,6 +19,7 @@ export class ApprovalService {
     }
 
     const approval = ApprovalSchema.parse(approvalInput);
+    proposalPayloadValidators.get(proposal.eventType)?.(proposal.payload);
     const event: EventEnvelope = {
       eventId: this.nextEventId(),
       schemaVersion: proposal.schemaVersion,
