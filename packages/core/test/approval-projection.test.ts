@@ -197,4 +197,47 @@ describe('ApprovalService and CharacterProjection', () => {
       aliases: ['江湖客'],
     });
   });
+
+  it('rebuilds the same state when replaying the same event set twice', () => {
+    const events: EventEnvelope[] = [
+      {
+        eventId: 'evt-replay-1',
+        schemaVersion: 1,
+        workId: 'work-1',
+        eventType: 'character.state.changed',
+        occurredAt: '2026-07-18T12:01:00.000Z',
+        actor: { kind: 'author', id: 'local-author' },
+        proposalId: 'proposal-replay-1',
+        approval: {
+          approvedBy: 'local-author',
+          approvedAt: '2026-07-18T12:01:00.000Z',
+          reason: '确认人物位置变更',
+        },
+        payload: { characterId: 'char-1', patch: { location: '临江城', alive: true } },
+      },
+      {
+        eventId: 'evt-replay-2',
+        schemaVersion: 1,
+        workId: 'work-1',
+        eventType: 'character.state.changed',
+        occurredAt: '2026-07-18T12:02:00.000Z',
+        actor: { kind: 'author', id: 'local-author' },
+        proposalId: 'proposal-replay-2',
+        approval: {
+          approvedBy: 'local-author',
+          approvedAt: '2026-07-18T12:02:00.000Z',
+          reason: '确认人物状态变更',
+        },
+        payload: { characterId: 'char-1', patch: { level: 3 } },
+      },
+    ];
+
+    const firstReplay = new CharacterProjection().rebuild(events);
+    const secondReplay = new CharacterProjection().rebuild(events);
+
+    expect(firstReplay).toEqual({
+      'char-1': { location: '临江城', alive: true, level: 3 },
+    });
+    expect(secondReplay).toEqual(firstReplay);
+  });
 });
