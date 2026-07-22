@@ -1,13 +1,8 @@
-import type { JsonValue } from '@ai-novelist/contracts';
+import type { CharacterStateChangedPayloadV1, JsonValue } from '@ai-novelist/contracts';
 
-export type CharacterStatePatch = Record<string, JsonValue>;
+export type CharacterStatePatch = CharacterStateChangedPayloadV1['patch'];
 
-export interface CharacterStateChangePayload {
-  characterId: string;
-  patch: CharacterStatePatch;
-}
-
-function isObject(value: JsonValue | undefined): value is CharacterStatePatch {
+function isObject(value: JsonValue): value is Record<string, JsonValue> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -24,19 +19,6 @@ function cloneObject(value: Record<string, JsonValue>): Record<string, JsonValue
   }
 
   return copy;
-}
-
-export function validateCharacterStateChangePayload(
-  payload: Record<string, JsonValue>,
-): CharacterStateChangePayload {
-  const characterId = payload['characterId'];
-  const patch = payload['patch'];
-
-  if (typeof characterId !== 'string' || !isObject(patch)) {
-    throw new Error('INVALID_CHARACTER_STATE_EVENT');
-  }
-
-  return { characterId, patch };
 }
 
 export function cloneJsonValue(value: JsonValue): JsonValue {

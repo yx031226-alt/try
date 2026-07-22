@@ -90,11 +90,11 @@ describe('ApprovalService and CharacterProjection', () => {
     ['a missing character ID', { patch: { location: '临江城' } }],
   ])('rejects %s before it enters the event store', (_description, payload) => {
     withInMemoryStore((store) => {
-      const invalidProposal: ChangeProposal = {
+      const invalidProposal = {
         ...proposal,
         proposalId: 'proposal-invalid',
         payload,
-      };
+      } as unknown as ChangeProposal;
 
       expect(() =>
         new ApprovalService(store, () => 'evt-invalid').approve(invalidProposal, {
@@ -137,7 +137,7 @@ describe('ApprovalService and CharacterProjection', () => {
   });
 
   it('rejects malformed character state events', () => {
-    const invalidEvent: EventEnvelope = {
+    const invalidEvent = {
       eventId: 'evt-1',
       schemaVersion: 1,
       workId: 'work-1',
@@ -151,7 +151,7 @@ describe('ApprovalService and CharacterProjection', () => {
         reason: '确认人物状态变更',
       },
       payload: { characterId: 'char-1', patch: null },
-    };
+    } as unknown as EventEnvelope;
 
     expect(() => new CharacterProjection().rebuild([invalidEvent])).toThrow(
       'INVALID_CHARACTER_STATE_EVENT',

@@ -1,7 +1,8 @@
-import { EventEnvelopeSchema, type EventEnvelope } from '@ai-novelist/contracts';
+import type { EventEnvelope } from '@ai-novelist/contracts';
 import type Database from 'better-sqlite3';
 
 import type { EventStore } from './event-store.js';
+import { validateReplayableEventEnvelope } from './replayable-event.js';
 
 type StoredBody = { body: string };
 
@@ -19,7 +20,7 @@ function canonicalJson(value: unknown): string {
       throw new Error('INVALID_JSON_VALUE');
     }
 
-    return Object.is(value, -0) ? '-0' : JSON.stringify(value);
+    return value === 0 ? '0' : JSON.stringify(value);
   }
 
   if (Array.isArray(value)) {
@@ -52,7 +53,7 @@ export class SqliteEventStore implements EventStore {
   }
 
   append(event: EventEnvelope): 'appended' | 'duplicate' {
-    const parsed = EventEnvelopeSchema.parse(event);
+    const parsed = validateReplayableEventEnvelope(event);
     const body = canonicalJson(parsed);
 
     return this.database
@@ -93,6 +94,6 @@ export class SqliteEventStore implements EventStore {
       .prepare<[string], StoredBody>('SELECT body FROM events WHERE work_id = ? ORDER BY sequence')
       .all(workId);
 
-    return events.map(({ body }) => EventEnvelopeSchema.parse(JSON.parse(body)));
+    return events.map(({ body }) => validateReplayableEventEnvelope(JSON.parse(body)));
   }
 }

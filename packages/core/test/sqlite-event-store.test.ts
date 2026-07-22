@@ -103,6 +103,43 @@ describe('SqliteEventStore', () => {
     expect(store.readAll('work-1')).toEqual([]);
   });
 
+  it.each([
+    ['a null patch', { characterId: 'char-1', patch: null }],
+    ['a missing character ID', { patch: { location: '临江城' } }],
+  ])('rejects character state events with %s before persisting', (_description, payload) => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const malformedEvent = { ...event, payload } as unknown as EventEnvelope;
+
+    expect(() => store.append(malformedEvent)).toThrow('INVALID_CHARACTER_STATE_EVENT');
+    expect(store.readAll('work-1')).toEqual([]);
+  });
+
+  it('rejects unsupported formal event types before persisting', () => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const unsupportedEvent = {
+      ...event,
+      eventType: 'chapter.published',
+      payload: { chapterId: 'chapter-1' },
+    } as unknown as EventEnvelope;
+
+    expect(() => store.append(unsupportedEvent)).toThrow('UNSUPPORTED_EVENT_TYPE');
+    expect(store.readAll('work-1')).toEqual([]);
+  });
+
+  it('treats negative zero and its JSON-roundtripped zero as an idempotent duplicate', () => {
+    const store = new SqliteEventStore(new Database(':memory:'));
+    const negativeZeroEvent: EventEnvelope = {
+      ...event,
+      eventId: 'evt-negative-zero',
+      proposalId: 'proposal-negative-zero',
+      payload: { characterId: 'char-1', patch: { reputation: -0 } },
+    };
+    const roundtrippedEvent = JSON.parse(JSON.stringify(negativeZeroEvent)) as EventEnvelope;
+
+    expect(store.append(negativeZeroEvent)).toBe('appended');
+    expect(store.append(roundtrippedEvent)).toBe('duplicate');
+  });
+
   it('treats reordered JSON object keys as an idempotent duplicate', () => {
     const store = new SqliteEventStore(new Database(':memory:'));
     const canonicalEvent: EventEnvelope = {
